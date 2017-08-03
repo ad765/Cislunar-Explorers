@@ -4,7 +4,7 @@
 % cubesat given initial conditions and parameters for the 
 
 
-clear,clc,clf
+clear,clc
 
 %% Unpack and spline ephermerides data
 % All in m and m/s
@@ -29,7 +29,7 @@ p.sun_z  = interp1(time,sun(:,3),interptime,'spline');
 % Time array
 t0      = 0;                % start time (in seconds)
 secpmin = 60;               % seconds per minute
-minutes = 50;               % end time (in minutes)
+minutes = 10;               % end time (in minutes)
 tf      = minutes*secpmin;  % end time (in seconds)
 dt_dyn  = 1;                % dynamics update time interval (in seconds)
 dt_fil  = 10;               % filter update time interval (in seconds)
@@ -46,15 +46,15 @@ mm      = 7.348e22;         % mass of moon
 p.rs    = 6.957e8;          % radius of sun
 p.re  	= 6.371e6;          % radius of earth
 p.rm  	= 1.737e6;          % radius of moon
-p.P  	= 2464;             % pixels resolution   (Raspberry PI Camera v2)
-p.THETA = 0.872;            % field of view
+p.P  	= 2464;             % pixels resolution (Raspberry PI Camera v2)
+p.THETA = 0.9337;           % field of view     (CAMERA MODULE datasheet)
 p.muM   = G*mm;             % std gravitational parameter of moon
 p.muE   = G*me;             % std gravitational parameter of earth
 p.muS   = G*ms;             % std gravitational parameter of sun
 p.q     = 1e-5;             % std deviation of process noise
-p.r     = 1e6;              % std deviation of measurement noise
-Q_k     = p.q^2*eye(6);     % covariance of process noise
-R_k     = p.r^2*eye(5);        % covariance of measurement noise
+p.r     = 0.12*(180/pi)*p.P/p.THETA; % std deviation of measurement noise
+Q_k     = p.q^2*eye(L);     % covariance of process noise
+R_k     = p.r^2*eye(M);     % covariance of measurement noise
 
 % Initial state
 xc0     = 408e3+p.re;
@@ -142,7 +142,7 @@ for i = t0+1:dt_fil:tf+1
     MEASURED = [MEASURED, Y_meas];
     
     % Sigma points of state estimate (k-1)
-    Xsp_kkm1 = sigmaPoints( X_kkm1, P_kkm1, lambda+L);
+    Xsp_kkm1 = sigmaPoints( X_kkm1, real(P_kkm1), lambda+L);
     lsp = length(Xsp_kkm1);
     
     % Sigma points of state measurement
@@ -238,7 +238,7 @@ hold on
 plot(P11)
 plot(-P11)
 plot(x_est-x_theory)
-title('Position (x) vs. Time')
+title('Position (x) Error vs. Time')
 legend('Estimate','Theory')
 hold off
 
@@ -247,7 +247,7 @@ hold on
 plot(P22)
 plot(-P22)
 plot(y_est-y_theory)
-title('Position (y) vs. Time')
+title('Position (y) Error vs. Time')
 legend('Estimate','Theory')
 hold off
 
@@ -256,13 +256,13 @@ hold on
 plot(P33)
 plot(-P33)
 plot(z_est-z_theory)
-title('Position (z) vs. Time')
+title('Position (z) Error vs. Time')
 legend('Estimate','Theory')
 hold off
 
 figure(5)
 hold on
-title('Cubesat-Moon Angle Innovatio')
+title('Cubesat-Moon Angle Innovation')
 plot(INNOVATION(1,:))
 hold off
 
