@@ -11,7 +11,7 @@ clear,clc
 %% PROGRAM INPUTS
 moonTable   = 'moon_eph.txt';   % Moon ephemeris data sheet
 sunTable    = 'sun_eph.txt';    % Sun ephemeris data sheet
-dt_fil      = 100;               % filter update time interval (in seconds)
+dt_fil      = 10;               % filter update time interval (in seconds)
 
 
 %% Unpack and spline ephermerides data
@@ -74,7 +74,7 @@ ycdot0  = 7.67e3;
 zcdot0  = 0;
 X0      = [xc0; yc0; zc0; xcdot0; ycdot0; zcdot0];
 
-%% Dynamics Model Check
+%% Dynamics Model Check (Simulation)
 X_state = [];
 
 for i = t0+1:dt_dyn:tf+1
