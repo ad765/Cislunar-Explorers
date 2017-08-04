@@ -18,7 +18,7 @@ L = length(X);
 SP = zeros(L,2*L);
 
 %% Cholesky factorization (matrix square-root)
-A = chol(P,'upper');
+A = chol(P,'lower');
 
 %% Sigma point calculation
 for i = 1:L

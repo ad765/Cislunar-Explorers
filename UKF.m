@@ -2,26 +2,36 @@
 %
 % The following code simulations the position determination of the lunar
 % cubesat given initial conditions and parameters for the 
-
+%
+% Use https://ssd.jpl.nasa.gov/horizons.cgi to find correct ephemeris.
+% Directions for ephemeris tables are given in README.md.
 
 clear,clc
 
+%% PROGRAM INPUTS
+moonTable   = 'moon_eph.txt';   % Moon ephemeris data sheet
+sunTable    = 'sun_eph.txt';    % Sun ephemeris data sheet
+dt_fil      = 100;               % filter update time interval (in seconds)
+
+
 %% Unpack and spline ephermerides data
-% All in m and m/s
-moon    = csvread('moon_30min.csv',1,1)*1000;
-sun     = csvread('sun_30min.csv',1,1)*1000;
+% All in meters and in intervals of seconds
 
-delta_t = 1/1800;
-time    = 0:1:length(moon(:,1))-1;            % In intervals of 30 min
-interptime = 0:delta_t:length(moon(:,1))-1;   % In intervals of 1 sec
 
-p.moon_x  = interp1(time,moon(:,1),interptime,'spline');
-p.moon_y  = interp1(time,moon(:,2),interptime,'spline');
-p.moon_z  = interp1(time,moon(:,3),interptime,'spline');
+[moonX, moonY,  moonZ,  ~,~,~]  = txt2csv(moonTable);
+[sunX,  sunY,   sunZ,   ~,~,~]  = txt2csv(sunTable);
 
-p.sun_x  = interp1(time,sun(:,1),interptime,'spline');
-p.sun_y  = interp1(time,sun(:,2),interptime,'spline');
-p.sun_z  = interp1(time,sun(:,3),interptime,'spline');
+delta_t = 1/60;
+time    = 0:1:length(moonX)-1;            % In intervals of 1 min
+interptime = 0:delta_t:length(moonX)-1;   % In intervals of 1 sec
+
+p.moon_x  = interp1(time,moonX,interptime,'spline')*1000;
+p.moon_y  = interp1(time,moonY,interptime,'spline')*1000;
+p.moon_z  = interp1(time,moonZ,interptime,'spline')*1000;
+
+p.sun_x  = interp1(time,sunX,interptime,'spline')*1000;
+p.sun_y  = interp1(time,sunY,interptime,'spline')*1000;
+p.sun_z  = interp1(time,sunZ,interptime,'spline')*1000;
 
 
 %% Parameters and Initializations
@@ -32,7 +42,6 @@ secpmin = 60;               % seconds per minute
 minutes = 10;               % end time (in minutes)
 tf      = minutes*secpmin;  % end time (in seconds)
 dt_dyn  = 1;                % dynamics update time interval (in seconds)
-dt_fil  = 10;               % filter update time interval (in seconds)
 
 % State and measurement properties
 L       = 6;                % length of state
@@ -47,7 +56,7 @@ p.rs    = 6.957e8;          % radius of sun
 p.re  	= 6.371e6;          % radius of earth
 p.rm  	= 1.737e6;          % radius of moon
 p.P  	= 2464;             % pixels resolution (Raspberry PI Camera v2)
-p.THETA = 0.9337;           % field of view     (CAMERA MODULE datasheet)
+p.THETA = 52.40*pi/180;     % field of view     (CAMERA MODULE datasheet)
 p.muM   = G*mm;             % std gravitational parameter of moon
 p.muE   = G*me;             % std gravitational parameter of earth
 p.muS   = G*ms;             % std gravitational parameter of sun
@@ -142,7 +151,7 @@ for i = t0+1:dt_fil:tf+1
     MEASURED = [MEASURED, Y_meas];
     
     % Sigma points of state estimate (k-1)
-    Xsp_kkm1 = sigmaPoints( X_kkm1, real(P_kkm1), lambda+L);
+    Xsp_kkm1 = sigmaPoints( X_kkm1, P_kkm1, lambda+L);
     lsp = length(Xsp_kkm1);
     
     % Sigma points of state measurement
