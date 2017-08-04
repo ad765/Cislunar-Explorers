@@ -1,7 +1,7 @@
 % Unscented Kalman Filter for Trajectory Determination
 %
 % The following code simulations the position determination of the lunar
-% cubesat given initial conditions and parameters for the 
+% cubesat given initial conditions and parameters for the
 %
 % Use https://ssd.jpl.nasa.gov/horizons.cgi to find correct ephemeris.
 % Directions for ephemeris tables are given in README.md.
@@ -12,12 +12,19 @@ clear,clc
 moonTable   = 'moon_eph.txt';   % Moon ephemeris data sheet
 sunTable    = 'sun_eph.txt';    % Sun ephemeris data sheet
 dt_fil      = 10;               % filter update time interval (in seconds)
+minutes     = 10;               % end time (in minutes)
+p.L         = 6;                % length of state
+p.M         = 5;                % length of measurements
+xc0     = 408e3+6378.1e3;           
+yc0     = 0;
+zc0     = 0;
+xcdot0  = 0;
+ycdot0  = 7.67e3;
+zcdot0  = 0;
 
 
 %% Unpack and spline ephermerides data
 % All in meters and in intervals of seconds
-
-
 [moonX, moonY,  moonZ,  ~,~,~]  = txt2csv(moonTable);
 [sunX,  sunY,   sunZ,   ~,~,~]  = txt2csv(sunTable);
 
@@ -39,13 +46,8 @@ p.sun_z  = interp1(time,sunZ,interptime,'spline')*1000;
 % Time array
 t0      = 0;                % start time (in seconds)
 secpmin = 60;               % seconds per minute
-minutes = 10;               % end time (in minutes)
 tf      = minutes*secpmin;  % end time (in seconds)
 dt_dyn  = 1;                % dynamics update time interval (in seconds)
-
-% State and measurement properties
-L       = 6;                % length of state
-M       = 5;                % length of measurements
 
 % Planetary and camera parameters
 G       = 6.67e-11;         % gravitational constant
@@ -62,23 +64,17 @@ p.muE   = G*me;             % std gravitational parameter of earth
 p.muS   = G*ms;             % std gravitational parameter of sun
 p.q     = 1e-5;             % std deviation of process noise
 p.r     = 0.12*(180/pi)*p.P/p.THETA; % std deviation of measurement noise
-Q_k     = p.q^2*eye(L);     % covariance of process noise
-R_k     = p.r^2*eye(M);     % covariance of measurement noise
+p.Q_k   = p.q^2*eye(p.L);     % covariance of process noise
+p.R_k   = p.r^2*eye(p.M);     % covariance of measurement noise
 
 % Initial state
-xc0     = 408e3+p.re;
-yc0     = 0;
-zc0     = 0;
-xcdot0  = 0;
-ycdot0  = 7.67e3;
-zcdot0  = 0;
 X0      = [xc0; yc0; zc0; xcdot0; ycdot0; zcdot0];
 
 %% Dynamics Model Check (Simulation)
 X_state = [];
 
 for i = t0+1:dt_dyn:tf+1
-    X_temp = stateTransition( dt_dyn, X0, p, i);
+    X_temp = stateTransition( @dynamicsModel, dt_dyn, X0, p, i);
     X_state = [X_state, X_temp];
     X0 = X_temp;
 end
@@ -119,17 +115,17 @@ hold off
 X_kkm1  = [xc0; yc0; zc0; xcdot0; ycdot0; zcdot0];
 
 % Initial state covariance
-P_kkm1 = 1e6*eye(L);
+P_kkm1 = 1e6*eye(p.L);
 
 % UKF parameters
-alpha   = 1e-3;                     % default, tunable
-kappa   = 0;                        % default, tunable
-beta    = 2;                        % default, tunable
-lambda  = alpha^2*(L+kappa)-L;
-Wm      = [lambda/(L+lambda);
-    (1/(2*(lambda+L)))*ones(2*L,1)];
-Wc      = [lambda/(L+lambda) + (1-alpha^2+beta);
-    (1/(2*(lambda+L)))*ones(2*L,1)];
+p.alpha   = 1e-3;                     % default, tunable
+p.kappa   = 0;                        % default, tunable
+p.beta    = 2;                        % default, tunable
+p.lambda  = p.alpha^2*(p.L+p.kappa)-p.L;
+p.Wm      = [p.lambda/(p.L+p.lambda);
+    (1/(2*(p.lambda+p.L)))*ones(2*p.L,1)];
+p.Wc      = [p.lambda/(p.L+p.lambda) + (1-p.alpha^2+p.beta);
+    (1/(2*(p.lambda+p.L)))*ones(2*p.L,1)];
 
 THEORY      = [];
 STATE       = [];
@@ -141,80 +137,26 @@ INNOVATION  = [];
 
 for i = t0+1:dt_fil:tf+1
     
-    P11     = [P11, 3*sqrt(P_kkm1(1,1))];
-    P22     = [P22, 3*sqrt(P_kkm1(2,2))];
-    P33     = [P33, 3*sqrt(P_kkm1(3,3))];
-    
     % Simulated measurement
-    Y_meas  = measurementModel( X_state(:,i), p, i) + normrnd(0,p.r,[M,1]);
-    THEORY = [THEORY, X_state(:,i)];
-    MEASURED = [MEASURED, Y_meas];
+    Y_meas      = measurementModel( X_state(:,i), p, i) + normrnd(0,p.r,[p.M,1]);
+    THEORY      = [THEORY, X_state(:,i)];
+    MEASURED    = [MEASURED, Y_meas];
     
-    % Sigma points of state estimate (k-1)
-    Xsp_kkm1 = sigmaPoints( X_kkm1, P_kkm1, lambda+L);
-    lsp = length(Xsp_kkm1);
-    
-    % Sigma points of state measurement
-    Ysp_kkm1 = zeros(M,lsp);
-    for j = 1:lsp
-        Ysp_kkm1(:,j) = measurementModel( Xsp_kkm1(:,j), p, i);
-    end
-    
-    % State measurement
-    Y_k = zeros(M,1);
-    for j = 1:lsp
-        Y_k = Y_k + Wm(j)*Ysp_kkm1(:,j);
-    end
-    
-    % State measurement covariance
-    P_YY = zeros(M,M);
-    for j = 1:lsp
-        P_YY = P_YY + Wc(j)*(Ysp_kkm1(:,j) - Y_k)*(Ysp_kkm1(:,j) - Y_k)';
-    end
-    P_YY = P_YY + R_k;
-    
-    % State estimation-measurement cross-covariance
-    P_XY = zeros(L,M);
-    for j = 2:lsp
-        P_XY = P_XY + (Xsp_kkm1(:,j) - X_kkm1)*(Ysp_kkm1(:,j) - Y_k)';
-    end
-    P_XY = (1/(2*lambda))*P_XY;
-    
-    % Kalman gain
-    K = P_XY*pinv(P_YY);
-    
-    % State estimation and state estimation error covariance
-    INNOVATION = [INNOVATION, (Y_meas - Y_k)];
-    X_kk = X_kkm1 + K*(Y_meas - Y_k);
-    P_kk = (P_kkm1 - K*P_YY*K');
-    
-    % Sigma points of state estimate (k)
-    Xsp_kk = sigmaPoints( X_kk, P_kk, lambda+L);
-    
-    % State-transition model
-    Xsp_kp1k = zeros(size(Xsp_kkm1));
-    for j = 1:lsp
-        Xsp_kp1k(:,j) = stateTransition( dt_fil, Xsp_kk(:,j), p, i);
-    end
-    
-    % State estimation
-    X_kp1k = zeros(L,1);
-    for j = 1:lsp
-        X_kp1k = X_kp1k + Wm(j)*Xsp_kp1k(:,j);
-    end
-    
-    % Covariance estimation
-    P_kp1k  = zeros(L,L);
-    for j = 1:lsp
-        P_kp1k = Wc(j)*(Xsp_kp1k(:,j) - X_kp1k)*(Xsp_kp1k(:,j) - X_kp1k)';
-    end
-    P_kp1k  = P_kp1k + Q_k;
+    % Unscented Kalman filter
+    [ X_kp1k, P_kp1k, diff ] = UKF( @dynamicsModel, ...
+        measurementModel( X_state(:,i), p, i),...
+        X_kkm1, P_kkm1, Y_meas, p, i, dt_fil);
     
     % Reinitialize
     X_kkm1  = X_kp1k;
     P_kkm1  = P_kp1k;
     
-    STATE   = [STATE, X_kp1k];
+    % Tabulate arrays
+    STATE       = [STATE, X_kp1k];
+    INNOVATION  = [INNOVATION, diff];
+    P11         = [P11, 3*sqrt(P_kp1k(1,1))];
+    P22         = [P22, 3*sqrt(P_kp1k(2,2))];
+    P33         = [P33, 3*sqrt(P_kp1k(3,3))];
     
 end
 

@@ -28,7 +28,7 @@ p.xs = p.sun_x(cur_T);
 p.ys = p.sun_y(cur_T);
 p.zs = p.sun_z(cur_T);
 
-%% Equations of motion (actual equations)
+% Equations of motion (actual equations)
 %
 Z(1)    = (p.P/p.THETA)*acos((-xc*p.xm - yc*p.ym - zc*p.zm + xc^2 + yc^2 + zc^2)/(sqrt(xc^2+yc^2+zc^2)*sqrt((p.xm-xc)^2+(p.ym-yc)^2+(p.zm-zc)^2)));
 Z(2)    = (p.P/p.THETA)*acos((-xc*p.xs - yc*p.ys - zc*p.zs + xc^2 + yc^2 + zc^2)/(sqrt(xc^2+yc^2+zc^2)*sqrt((p.xs-xc)^2+(p.ys-yc)^2+(p.zs-zc)^2)));
@@ -37,7 +37,7 @@ Z(4)    = (2*p.P/p.THETA)*atan2(p.re,sqrt(xc^2 + yc^2 + zc^2));
 Z(5)    = (2*p.P/p.THETA)*atan2(p.rm,sqrt((p.xm-xc)^2 + (p.ym-yc)^2 + (p.zm-zc)^2));
 %}
 
-%% Equations of motion (simplified measurement equations)
+% Equations of motion (simplified measurement equations)
 %{
 Z(1)    = xc;
 Z(2)    = yc;

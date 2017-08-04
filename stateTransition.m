@@ -1,4 +1,4 @@
-function [ Xout ] = stateTransition( dt, Xin, p, cur_T )
+function [ Xout ] = stateTransition( dynamicsfcn, dt, Xin, p, cur_T )
 % State transition model that propagates the state vector (X) from current
 % time (cur_T) to the future time (cur_T+dt).
 %
@@ -29,7 +29,7 @@ for i = 1:1:dt
     p.ys = p.sun_y(i+cur_T);
     p.zs = p.sun_z(i+cur_T);
     
-    [~,Xout] = ode45(@dynamicsModel, [t0,t0+1], Xin, options, p);
+    [~,Xout] = ode45( dynamicsfcn, [t0,t0+1], Xin, options, p);
     
     t0 = t0+1;
     Xin = Xout(end,:)';
