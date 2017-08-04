@@ -181,7 +181,7 @@ for i = t0+1:dt_fil:tf+1
     P_XY = (1/(2*lambda))*P_XY;
     
     % Kalman gain
-    K = P_XY/P_YY;
+    K = P_XY*pinv(P_YY);
     
     % State estimation and state estimation error covariance
     INNOVATION = [INNOVATION, (Y_meas - Y_k)];
