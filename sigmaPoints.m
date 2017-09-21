@@ -1,4 +1,4 @@
-function [ SP ] = sigmaPoints( X, P, lambda)
+function [ SP ] = sigmaPoints( X, P, c)
 % Calculates sigma points of state vector.
 %
 % Inputs:
@@ -13,18 +13,11 @@ function [ SP ] = sigmaPoints( X, P, lambda)
 % Anshuman Das, Cornell University
 % Wednesday, August 2, 2018
 
-%% Initialization
-L = length(X);
-SP = zeros(L,2*L);
-
 %% Cholesky factorization (matrix square-root)
-A = chol(P,'lower');
+A = sqrt(c)*chol(P)';
 
 %% Sigma point calculation
-for i = 1:L
-    SP(:,i)   = X + sqrt(lambda)*A(:,i);
-    SP(:,i+L) = X - sqrt(lambda)*A(:,i);
-end
-SP = [X, SP];
+Y = X(:,ones(1,numel(X)));
+SP = [X, Y+A, Y-A];
 
 end

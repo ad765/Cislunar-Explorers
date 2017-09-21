@@ -62,7 +62,7 @@ p.THETA = 52.40*pi/180;     % field of view     (CAMERA MODULE datasheet)
 p.muM   = G*mm;             % std gravitational parameter of moon
 p.muE   = G*me;             % std gravitational parameter of earth
 p.muS   = G*ms;             % std gravitational parameter of sun
-p.q     = 1e-5;             % std deviation of process noise
+p.q     = 1e-4;             % std deviation of process noise
 p.r     = 0.12*(180/pi)*p.P/p.THETA; % std deviation of measurement noise
 p.Q_k   = p.q^2*eye(p.L);     % covariance of process noise
 p.R_k   = p.r^2*eye(p.M);     % covariance of measurement noise
@@ -73,8 +73,8 @@ X0      = [xc0; yc0; zc0; xcdot0; ycdot0; zcdot0];
 %% Dynamics Model Check (Simulation)
 X_state = [];
 
-for i = t0+1:dt_dyn:tf+1
-    X_temp = stateTransition( @dynamicsModel, dt_dyn, X0, p, i);
+for k = t0+1:dt_dyn:tf+1
+    X_temp = stateTransition( @dynamicsModel, dt_dyn, X0, p, k);
     X_state = [X_state, X_temp];
     X0 = X_temp;
 end
@@ -135,28 +135,28 @@ P22         = [];
 P33         = [];
 INNOVATION  = [];
 
-for i = t0+1:dt_fil:tf+1
+for k = t0+1:dt_fil:tf+1
     
     % Simulated measurement
-    Y_meas      = measurementModel( X_state(:,i), p, i) + normrnd(0,p.r,[p.M,1]);
-    THEORY      = [THEORY, X_state(:,i)];
+    Y_meas      = measurementModel( X_state(:,k), p, k) + normrnd(0,p.r,[p.M,1]);
+    THEORY      = [THEORY, X_state(:,k)];
     MEASURED    = [MEASURED, Y_meas];
     
     % Unscented Kalman filter
     [ X_kp1k, P_kp1k, diff ] = UKF( @dynamicsModel, ...
-        measurementModel( X_state(:,i), p, i),...
-        X_kkm1, P_kkm1, Y_meas, p, i, dt_fil);
+        measurementModel( X_state(:,k), p, k),...
+        X_kkm1, P_kkm1, Y_meas, p, k, dt_fil);
     
     % Reinitialize
     X_kkm1  = X_kp1k;
     P_kkm1  = P_kp1k;
     
     % Tabulate arrays
-    STATE       = [STATE, X_kp1k];
+    STATE       = [STATE, X_kkm1];
     INNOVATION  = [INNOVATION, diff];
-    P11         = [P11, 3*sqrt(P_kp1k(1,1))];
-    P22         = [P22, 3*sqrt(P_kp1k(2,2))];
-    P33         = [P33, 3*sqrt(P_kp1k(3,3))];
+    P11         = [P11, 3*sqrt(P_kkm1(1,1))];
+    P22         = [P22, 3*sqrt(P_kkm1(2,2))];
+    P33         = [P33, 3*sqrt(P_kkm1(3,3))];
     
 end
 
@@ -188,7 +188,7 @@ figure(2)
 hold on
 plot(P11)
 plot(-P11)
-plot(x_est-x_theory)
+%plot(x_est-x_theory)
 title('Position (x) Error vs. Time')
 legend('Estimate','Theory')
 hold off
@@ -197,7 +197,7 @@ figure(3)
 hold on
 plot(P22)
 plot(-P22)
-plot(y_est-y_theory)
+%plot(y_est-y_theory)
 title('Position (y) Error vs. Time')
 legend('Estimate','Theory')
 hold off
@@ -206,7 +206,7 @@ figure(4)
 hold on
 plot(P33)
 plot(-P33)
-plot(z_est-z_theory)
+%plot(z_est-z_theory)
 title('Position (z) Error vs. Time')
 legend('Estimate','Theory')
 hold off
